@@ -4,15 +4,14 @@ pipeline {
     environment {
         DOCKER_HUB_USERNAME = "s8kevinaf02"
         ALPHA_APPLICATION_01_REPO = "article_app"
-        
     }
 
     parameters {
         string(name: 'BRANCH_NAME', defaultValue: 'main', description: '')
         string(name: 'APP1_TAG', defaultValue: 'app.01', description: '')
         string(name: 'PORT_ON_DOCKER_HOST_01', defaultValue: '3000', description: '')
-        
     }
+
     stages {
         stage('Clone Repository') {
             steps {
@@ -24,14 +23,16 @@ pipeline {
                 }
             }
         }
+
         stage('Building application 01') {
             steps {
                 script {
-                    dockerBuild("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}", ".")
-                    dockerImagesCheck(params.APP1_TAG)
+                    docker.build("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}", ".")
+                    docker.image(params.APP1_TAG).push()
                 }
             }
         }
+
         stage('Login to Docker Hub') {
             steps {
                 script {
@@ -45,10 +46,11 @@ pipeline {
                 }
             }
         }
+
         stage('Pushing images to Docker Hub') {
             steps {
                 script {
-                    dockerPush("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}")
+                    docker.push("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}")
                 }
             }
         }
@@ -57,8 +59,8 @@ pipeline {
             steps {
                 script {
                     try {
-                        dockerRun("app-01", params.PORT_ON_DOCKER_HOST_01, "${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}")
-                        dockerPS("app-01")
+                        docker.image("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}").run("-p ${params.PORT_ON_DOCKER_HOST_01}:3000 --name app-01")
+                        docker.ps()
                     } catch (Exception e) {
                         handleDeploymentError(e, "01")
                     }
