@@ -1,12 +1,14 @@
-FROM httpd
-LABEL maintainer="ektech"
-ARG port=80
-USER root
-RUN apt -y update 
-WORKDIR /usr/local/apache2/htdocs/
+FROM ubuntu:latest
+RUN apt update
+RUN apt install apache2 -y
 
+# RUN cd /var/www/html
+WORKDIR /var/www/html
 RUN rm -rf *
-ADD ./code/* /usr/local/apache2/htdocs/
+COPY ./app .
 
-ENTRYPOINT ["httpd-foreground"]
-EXPOSE ${port}
+# Expose port 80 to allow external access to the web server
+EXPOSE 80
+
+# Start Apache when the container starts
+CMD ["apache2ctl", "-D", "FOREGROUND"]
