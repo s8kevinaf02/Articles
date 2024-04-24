@@ -11,6 +11,7 @@ pipeline {
         string(name: 'BRANCH_NAME', defaultValue: 'main', description: '')
         string(name: 'APP1_TAG', defaultValue: 'app1.1.0', description: '')
         string(name: 'PORT_ON_DOCKER_HOST_01', defaultValue: '3000', description: '')
+        string(name: 'CONTAINER_NAME', defaultValue: 'app-01', description: '')
         
     }
 
@@ -30,8 +31,10 @@ pipeline {
         stage('Building application 01') {
             steps {
                 script {
-                    dockerBuild("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}", ".")
-                    dockerImagesCheck(params.APP1_TAG)
+                    sh """
+                        docker build -t ${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
+                        docker images |grep ${params.APP1_TAG}
+                    """ 
                 }
             }
         }
@@ -52,7 +55,9 @@ pipeline {
         stage('Pushing images to Docker Hub') {
             steps {
                 script {
-                    dockerPush("${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}")
+                    sh """
+                        docker push ${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
+                    """
                 }
             }
         }
@@ -60,12 +65,10 @@ pipeline {
         stage('Deploying the application 01') {
             steps {
                 script {
-                    try {
-                        dockerRun("container-01", params.PORT_ON_DOCKER_HOST_01, "${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}")
-                        dockerPS("container-01")
-                    } catch (Exception e) {
-                        handleDeploymentError(e, "01")
-                    }
+                   sh """
+                         docker run -itd -p ${params.PORT_ON_DOCKER_HOST}:80 --name ${params.CONTAINER_NAME} ${params.IMAGE_NAME}
+                         docker ps |grep ${params.CONTAINER_NAME}
+                     """
                 }
             }
         }
