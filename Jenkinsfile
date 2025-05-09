@@ -22,7 +22,7 @@ pipeline {
 
         stage('Checking the code') {
             steps {
-                sh "ls -l"
+                bat 'echo Hello from Windows'
             }
         }
 
