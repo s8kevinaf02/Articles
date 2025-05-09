@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:latest'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         DOCKER_HUB_USERNAME = "s8kevinaf02"
@@ -22,53 +27,43 @@ pipeline {
 
         stage('Checking the code') {
             steps {
-                bat 'echo Hello from Windows'
+                sh 'echo Hello from Linux agent'
             }
         }
 
         stage('Building application 01') {
             steps {
-                script {
-                    sh """
-                        docker build -t ${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
-                        docker images | grep ${params.APP1_TAG}
-                    """ 
-                }
+                sh """
+                    docker build -t ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
+                    docker images | grep ${params.APP1_TAG}
+                """
             }
         }
 
         stage('Login to Docker Hub') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
-                                                      usernameVariable: 'DOCKER_HUB_USERNAME', 
-                                                      passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
-                        sh """
-                            echo ${env.DOCKER_HUB_PASSWORD} | docker login -u ${env.DOCKER_HUB_USERNAME} --password-stdin
-                        """
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
+                                                  usernameVariable: 'DOCKER_HUB_USERNAME', 
+                                                  passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
+                    sh """
+                        echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+                    """
                 }
             }
         }
 
         stage('Pushing images to Docker Hub') {
             steps {
-                script {
-                    sh """
-                        docker push ${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
-                    """
-                }
+                sh "docker push ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}"
             }
         }
 
         stage('Deploying the application 01') {
             steps {
-                script {
-                   sh """
-                         docker run -itd -p ${params.PORT_ON_DOCKER_HOST_01}:80 --name ${params.CONTAINER_NAME} ${env.DOCKER_HUB_USERNAME}/${env.ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
-                         docker ps | grep ${params.CONTAINER_NAME}
-                     """
-                }
+                sh """
+                    docker run -itd -p ${params.PORT_ON_DOCKER_HOST_01}:80 --name ${params.CONTAINER_NAME} ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
+                    docker ps | grep ${params.CONTAINER_NAME}
+                """
             }
         }
     }
