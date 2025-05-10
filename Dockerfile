@@ -1,14 +1,17 @@
-FROM ubuntu:latest
-RUN apt update
-RUN apt install apache2 -y
+FROM debian:bookworm-slim
 
-# RUN cd /var/www/html
+# Install Apache (and clean up cache to keep it lean)
+RUN apt-get update && \
+    apt-get install -y apache2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory and copy app files
 WORKDIR /var/www/html
-RUN rm -rf *
 COPY ./app .
 
-# Expose port 80 to allow external access to the web server
+# Expose Apache's default port
 EXPOSE 80
 
-# Start Apache when the container starts
+# Start Apache in foreground
 CMD ["apache2ctl", "-D", "FOREGROUND"]
