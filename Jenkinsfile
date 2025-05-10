@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:latest'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         DOCKER_HUB_USERNAME = "s8kevinaf02"
@@ -27,16 +22,31 @@ pipeline {
 
         stage('Checking the code') {
             steps {
-                sh 'echo Hello from Linux agent'
+                script {
+                    if (isUnix()) {
+                        sh 'echo Hello from Linux agent'
+                    } else {
+                        bat 'echo Hello from Windows agent'
+                    }
+                }
             }
         }
 
         stage('Building application 01') {
             steps {
-                sh """
-                    docker build -t ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
-                    docker images | grep ${params.APP1_TAG}
-                """
+                script {
+                    if (isUnix()) {
+                        sh """
+                            docker build -t ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
+                            docker images | grep ${params.APP1_TAG}
+                        """
+                    } else {
+                        bat """
+                            docker build -t ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG} .
+                            docker images | findstr ${params.APP1_TAG}
+                        """
+                    }
+                }
             }
         }
 
@@ -45,25 +55,48 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
                                                   usernameVariable: 'DOCKER_HUB_USERNAME', 
                                                   passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
-                    sh """
-                        echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-                    """
+                    script {
+                        if (isUnix()) {
+                            sh """
+                                echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+                            """
+                        } else {
+                            bat """
+                                echo %DOCKER_HUB_PASSWORD% | docker login -u %DOCKER_HUB_USERNAME% --password-stdin
+                            """
+                        }
+                    }
                 }
             }
         }
 
         stage('Pushing images to Docker Hub') {
             steps {
-                sh "docker push ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}"
+                script {
+                    if (isUnix()) {
+                        sh "docker push ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}"
+                    } else {
+                        bat "docker push ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}"
+                    }
+                }
             }
         }
 
         stage('Deploying the application 01') {
             steps {
-                sh """
-                    docker run -itd -p ${params.PORT_ON_DOCKER_HOST_01}:80 --name ${params.CONTAINER_NAME} ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
-                    docker ps | grep ${params.CONTAINER_NAME}
-                """
+                script {
+                    if (isUnix()) {
+                        sh """
+                            docker run -itd -p ${params.PORT_ON_DOCKER_HOST_01}:80 --name ${params.CONTAINER_NAME} ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
+                            docker ps | grep ${params.CONTAINER_NAME}
+                        """
+                    } else {
+                        bat """
+                            docker run -itd -p ${params.PORT_ON_DOCKER_HOST_01}:80 --name ${params.CONTAINER_NAME} ${DOCKER_HUB_USERNAME}/${ALPHA_APPLICATION_01_REPO}:${params.APP1_TAG}
+                            docker ps | findstr ${params.CONTAINER_NAME}
+                        """
+                    }
+                }
             }
         }
     }
